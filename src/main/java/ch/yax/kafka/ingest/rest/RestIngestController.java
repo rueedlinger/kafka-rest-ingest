@@ -5,7 +5,9 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -34,7 +36,7 @@ public class RestIngestController {
     log.info("processing request for event id {}", eventId);
     final Map<String, Object> resp = new HashMap<>();
     resp.put("eventId", eventId);
-    resp.put("timestamp", Instant.now());
+    resp.put("timestamp", LocalDateTime.now());
     return resp;
   }
 
@@ -50,7 +52,7 @@ public class RestIngestController {
 
       final Map<String, Object> body = new HashMap<>();
       body.put("eventId", eventId);
-      body.put("timestamp", Instant.now());
+      body.put("timestamp", LocalDateTime.now());
       body.put("id", generateId());
 
       return new ResponseEntity<>(body, HttpStatus.OK);
@@ -65,22 +67,12 @@ public class RestIngestController {
       body.put("error", status.getReasonPhrase());
       body.put("status", status.value());
       body.put("message", ex.getOriginalMessage());
-      body.put("timestamp", Instant.now());
+      body.put("timestamp", now());
       body.put("id", generateId());
 
       return new ResponseEntity<>(body, status);
     }
 
-  }
-
-  @GetMapping(value = "/{eventId}")
-  public Map<String, Object> getUserCustomers(@PathVariable final String eventId) {
-    log.info("processing request for event id {}", eventId);
-    final Map<String, Object> resp = new HashMap<>();
-    resp.put("eventId", eventId);
-    resp.put("timestamp", Instant.now());
-    resp.put("id", generateId());
-    return resp;
   }
 
   private String generateId() {
@@ -94,5 +86,7 @@ public class RestIngestController {
     objectMapper.readTree(payload);
   }
 
-
+  private ZonedDateTime now() {
+    return ZonedDateTime.now(ZoneId.systemDefault());
+  }
 }
