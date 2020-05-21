@@ -9,5 +9,4 @@ public class KafkaRestIngestApplication {
   public static void main(final String[] args) {
     SpringApplication.run(KafkaRestIngestApplication.class, args);
   }
-
 }

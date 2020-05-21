@@ -1,0 +1,8 @@
+ingest:
+  endpoints:
+    foo:
+      topic: foo
+      avro: false
+    bar:
+      topic: bar
+      avro: true
