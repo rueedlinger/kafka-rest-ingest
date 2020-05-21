@@ -27,6 +27,11 @@
       <groupId>org.springframework.kafka</groupId>
     </dependency>
     <dependency>
+      <artifactId>converter</artifactId>
+      <groupId>tech.allegro.schema.json2avro</groupId>
+      <version>0.2.9</version>
+    </dependency>
+    <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
       <version>1.18.10</version>

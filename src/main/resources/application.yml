@@ -2,7 +2,13 @@ ingest:
   endpoints:
     foo:
       topic: foo
-      avro: false
     bar:
       topic: bar
-      avro: true
+      schema:
+        path: /schema/test.avcs
+
+    baz:
+      topic: baz
+      schema:
+        value: '{"namespace": "example.avro", "type": "record", "name": "User",  "fields": [ {"name": "name", "type": "string"}]}'
+

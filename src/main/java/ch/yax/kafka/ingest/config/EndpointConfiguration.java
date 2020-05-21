@@ -26,6 +26,7 @@ public class EndpointConfiguration {
     if (endpoint == null) {
       return Optional.empty();
     } else {
+      log.info("endpoint: {}", endpoint);
       return Optional.of(endpoint);
     }
   }
@@ -34,6 +35,13 @@ public class EndpointConfiguration {
   @ToString
   public static class Endpoint {
     private String topic;
-    private boolean avro = false;
+    private Schema schema;
+  }
+
+  @Data
+  @ToString
+  public static class Schema {
+    private String path;
+    private String value;
   }
 }
