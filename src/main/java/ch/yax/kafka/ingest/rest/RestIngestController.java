@@ -18,10 +18,14 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.support.SendResult;
+import org.springframework.util.concurrent.ListenableFuture;
+import org.springframework.util.concurrent.ListenableFutureCallback;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.context.request.async.DeferredResult;
 
 @RestController
 @RequestMapping(value = "/publish")
@@ -30,13 +34,13 @@ public class RestIngestController {
 
   @Autowired private EndpointConfiguration endpoints;
 
-  @Autowired private KafkaTemplate<Object, Object> template;
+  @Autowired private KafkaTemplate<Object, Object> kafkaTemplate;
 
   @PostMapping(
       value = "/{eventId}",
       consumes = APPLICATION_JSON_VALUE,
       produces = APPLICATION_JSON_VALUE)
-  public ResponseEntity<Map<String, Object>> publish(
+  public DeferredResult<ResponseEntity<Map<String, Object>>> publish(
       final HttpEntity<String> httpEntity, @PathVariable final String eventId) {
     log.info(
         "processing request for eventId = '{}' with payload = '{}'", eventId, httpEntity.getBody());
@@ -44,22 +48,54 @@ public class RestIngestController {
     Optional<Endpoint> endpoint = endpoints.getEndpointById(eventId);
 
     if (endpoint.isPresent()) {
-      return processEvent(httpEntity, eventId);
+      return processEvent(httpEntity, eventId, endpoint.get());
     } else {
       log.warn("Endpoint for eventId = '{}' does not exist.", eventId);
-      return createErrorResponse(
-          eventId,
-          HttpStatus.NOT_FOUND,
-          String.format("Endpoint for eventId = '%s' does not exist.", eventId));
+
+      DeferredResult<ResponseEntity<Map<String, Object>>> result = new DeferredResult<>();
+      result.setErrorResult(
+          createErrorResponse(
+              eventId,
+              HttpStatus.NOT_FOUND,
+              String.format("Endpoint for eventId = '%s' does not exist.", eventId)));
+
+      return result;
     }
   }
 
-  private ResponseEntity<Map<String, Object>> processEvent(
-      HttpEntity<String> httpEntity, @PathVariable String eventId) {
+  private DeferredResult<ResponseEntity<Map<String, Object>>> processEvent(
+      HttpEntity<String> httpEntity, String eventId, Endpoint endpoint) {
     try {
       validate(httpEntity.getBody());
-      // TODO: send message
-      return createResponse(eventId, HttpStatus.OK);
+
+      ListenableFuture<SendResult<Object, Object>> future =
+          kafkaTemplate.send(endpoint.getTopic(), httpEntity.getBody());
+
+      final DeferredResult<ResponseEntity<Map<String, Object>>> response = new DeferredResult<>();
+
+      future.addCallback(
+          new ListenableFutureCallback<>() {
+
+            @Override
+            public void onSuccess(SendResult<Object, Object> result) {
+              log.info(
+                  "Message sent to topic = '{}' with offset = '{}' and partition = '{}'",
+                  result.getRecordMetadata().topic(),
+                  result.getRecordMetadata().offset(),
+                  result.getRecordMetadata().partition());
+              response.setResult(createResponse(eventId, HttpStatus.OK));
+            }
+
+            @Override
+            public void onFailure(Throwable throwable) {
+              log.error("Unable to send message (eventId = '{}')", eventId, throwable);
+              response.setErrorResult(
+                  createErrorResponse(
+                      eventId, HttpStatus.INTERNAL_SERVER_ERROR, throwable.getMessage()));
+            }
+          });
+
+      return response;
 
     } catch (final JsonProcessingException ex) {
       log.warn(
@@ -67,7 +103,11 @@ public class RestIngestController {
           eventId,
           httpEntity.getBody(),
           ex);
-      return createErrorResponse(eventId, HttpStatus.BAD_REQUEST, ex.getOriginalMessage());
+
+      DeferredResult<ResponseEntity<Map<String, Object>>> errorResult = new DeferredResult<>();
+      errorResult.setErrorResult(
+          createErrorResponse(eventId, HttpStatus.BAD_REQUEST, ex.getOriginalMessage()));
+      return errorResult;
     }
   }
 

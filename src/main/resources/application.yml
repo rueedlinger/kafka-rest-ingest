@@ -1,14 +1,32 @@
+server:
+  port: 9000
+
+spring:
+  kafka:
+    properties:
+      bootstrap-servers: localhost:9092
+      schema.registry.url: localhost:8082
+    producer:
+      acks: 1
+      retries: 5
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
 ingest:
   endpoints:
     foo:
       topic: foo
-    bar:
-      topic: bar
-      schema:
-        path: /schema/test.avcs
-
-    baz:
-      topic: baz
-      schema:
-        value: '{"namespace": "example.avro", "type": "record", "name": "User",  "fields": [ {"name": "name", "type": "string"}]}'
+#ingest:
+#  endpoints:
+#    foo:
+#      topic: foo
+#    bar:
+#      topic: bar
+#      schema:
+#        path: /schema/test.avcs
+#
+#    baz:
+#      topic: baz
+#      schema:
+#        value: '{"namespace": "example.avro", "type": "record", "name": "User",  "fields": [ {"name": "name", "type": "string"}]}'
 

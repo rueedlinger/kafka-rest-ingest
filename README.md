@@ -11,11 +11,11 @@ mvn clean package
 
 
 ```bash
-docker build -t ingest .
+docker-compose build
 ```
 
 ## Run
 
 ```bash
-docker run --publish 8080:8080 ingest
+docker-compose up
 ```
