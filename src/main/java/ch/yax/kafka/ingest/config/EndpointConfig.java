@@ -49,6 +49,7 @@ public class EndpointConfig {
   public static class Endpoint {
     private String topic;
     private Schema schema;
+    private boolean blocking = true;
 
     public boolean hasSchema() {
       return schema != null;

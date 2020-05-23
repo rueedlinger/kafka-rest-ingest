@@ -7,12 +7,14 @@ kafka:
   producer:
     auto.register.schemas: false
     retries: 5
-    acks: ALL
+    acks: all
 
-#ingest:
-#  endpoints:
-#    foo:
-#     topic: json-topic
+ingest:
+  endpoints:
+    foo:
+      topic: json-topic
+      blocking: false
+
 #    baz:
 #      topic: avro-topic
 #      schema:
