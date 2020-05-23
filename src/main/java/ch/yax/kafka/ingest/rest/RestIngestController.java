@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.avro.generic.GenericData;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
@@ -26,6 +27,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.context.request.async.DeferredResult;
+import tech.allegro.schema.json2avro.converter.AvroConversionException;
+import tech.allegro.schema.json2avro.converter.JsonAvroConverter;
 
 @RestController
 @RequestMapping(value = "/publish")
@@ -35,6 +38,8 @@ public class RestIngestController {
   @Autowired private EndpointConfiguration endpoints;
 
   @Autowired private KafkaTemplate<Object, Object> kafkaTemplate;
+
+  private JsonAvroConverter converter = new JsonAvroConverter();
 
   @PostMapping(
       value = "/{eventId}",
@@ -69,7 +74,7 @@ public class RestIngestController {
       validate(httpEntity.getBody());
 
       ListenableFuture<SendResult<Object, Object>> future =
-          kafkaTemplate.send(endpoint.getTopic(), httpEntity.getBody());
+          kafkaTemplate.send(endpoint.getTopic(), createMessage(httpEntity.getBody(), endpoint));
 
       final DeferredResult<ResponseEntity<Map<String, Object>>> response = new DeferredResult<>();
 
@@ -99,7 +104,7 @@ public class RestIngestController {
 
     } catch (final JsonProcessingException ex) {
       log.warn(
-          "Payload is not valid json! eventId = '{}', payload = '{}'",
+          "Payload is not valid JSON for eventId = '{}' with payload = '{}'",
           eventId,
           httpEntity.getBody(),
           ex);
@@ -107,6 +112,17 @@ public class RestIngestController {
       DeferredResult<ResponseEntity<Map<String, Object>>> errorResult = new DeferredResult<>();
       errorResult.setErrorResult(
           createErrorResponse(eventId, HttpStatus.BAD_REQUEST, ex.getOriginalMessage()));
+      return errorResult;
+    } catch (AvroConversionException ex) {
+      log.warn(
+          "Failed to convert JSON payload to Avro for eventId = '{}' with payload = '{}'",
+          eventId,
+          httpEntity.getBody(),
+          ex);
+
+      DeferredResult<ResponseEntity<Map<String, Object>>> errorResult = new DeferredResult<>();
+      errorResult.setErrorResult(
+          createErrorResponse(eventId, HttpStatus.BAD_REQUEST, ex.getMessage()));
       return errorResult;
     }
   }
@@ -139,5 +155,15 @@ public class RestIngestController {
     Map<String, Object> body = createBody(eventId, status);
     body.put("error", error);
     return new ResponseEntity<>(body, status);
+  }
+
+  private Object createMessage(String payload, Endpoint endpoint) {
+    if (endpoint.hasSchema()) {
+      GenericData.Record record =
+          converter.convertToGenericDataRecord(payload.getBytes(), endpoint.getSchema().getAvro());
+      return record;
+    } else {
+      return payload;
+    }
   }
 }

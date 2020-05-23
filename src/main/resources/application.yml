@@ -16,6 +16,11 @@ ingest:
   endpoints:
     foo:
       topic: foo
+    baz:
+      topic: baz
+      schema:
+        value: '{"namespace": "example.avro", "type": "record", "name": "User",  "fields": [ {"name": "name", "type": "string"}]}'
+
 #ingest:
 #  endpoints:
 #    foo:
