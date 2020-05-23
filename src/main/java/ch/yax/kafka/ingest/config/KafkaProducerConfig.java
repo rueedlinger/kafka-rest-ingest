@@ -22,10 +22,10 @@ import org.springframework.kafka.core.ProducerFactory;
 @Slf4j
 public class KafkaProducerConfig {
 
-  @Value(value = "${kafka.properties.bootstrap-servers}")
+  @Value(value = "${kafka.bootstrap.servers}")
   private String bootstrapAddress;
 
-  @Value(value = "${kafka.properties.schema.registry.url}")
+  @Value(value = "${kafka.schema.registry.url}")
   private String schemaRegistryUrl;
 
   @Value(value = "${kafka.producer.acks:1}")
@@ -34,7 +34,7 @@ public class KafkaProducerConfig {
   @Value(value = "${kafka.producer.retries:10}")
   private int retries;
 
-  @Value(value = "${kafka.properties.auto.register.schemas:false}")
+  @Value(value = "${kafka.producer.auto.register.schemas:false}")
   private boolean autoRegisterSchemas;
 
   // TODO: add other config options https://kafka.apache.org/documentation/#producerconfigs
