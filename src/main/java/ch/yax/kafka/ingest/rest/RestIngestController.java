@@ -2,8 +2,8 @@ package ch.yax.kafka.ingest.rest;
 
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
-import ch.yax.kafka.ingest.config.EndpointConfiguration;
-import ch.yax.kafka.ingest.config.EndpointConfiguration.Endpoint;
+import ch.yax.kafka.ingest.config.EndpointConfig;
+import ch.yax.kafka.ingest.config.EndpointConfig.Endpoint;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -14,7 +14,6 @@ import java.util.Map;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.generic.GenericData;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -35,11 +34,19 @@ import tech.allegro.schema.json2avro.converter.JsonAvroConverter;
 @Slf4j
 public class RestIngestController {
 
-  @Autowired private EndpointConfiguration endpoints;
+  private final EndpointConfig endpointConfig;
+  private final KafkaTemplate<Object, Object> rawKafkaTemplate;
+  private final KafkaTemplate<Object, Object> avroKafkaTemplate;
+  private final JsonAvroConverter converter = new JsonAvroConverter();
 
-  @Autowired private KafkaTemplate<Object, Object> kafkaTemplate;
-
-  private JsonAvroConverter converter = new JsonAvroConverter();
+  public RestIngestController(
+      EndpointConfig endpointConfig,
+      KafkaTemplate<Object, Object> rawKafkaTemplate,
+      KafkaTemplate<Object, Object> avroKafkaTemplate) {
+    this.endpointConfig = endpointConfig;
+    this.rawKafkaTemplate = rawKafkaTemplate;
+    this.avroKafkaTemplate = avroKafkaTemplate;
+  }
 
   @PostMapping(
       value = "/{eventId}",
@@ -47,10 +54,10 @@ public class RestIngestController {
       produces = APPLICATION_JSON_VALUE)
   public DeferredResult<ResponseEntity<Map<String, Object>>> publish(
       final HttpEntity<String> httpEntity, @PathVariable final String eventId) {
-    log.info(
+    log.debug(
         "processing request for eventId = '{}' with payload = '{}'", eventId, httpEntity.getBody());
 
-    Optional<Endpoint> endpoint = endpoints.getEndpointById(eventId);
+    Optional<Endpoint> endpoint = endpointConfig.getEndpointById(eventId);
 
     if (endpoint.isPresent()) {
       return processEvent(httpEntity, eventId, endpoint.get());
@@ -74,7 +81,7 @@ public class RestIngestController {
       validate(httpEntity.getBody());
 
       ListenableFuture<SendResult<Object, Object>> future =
-          kafkaTemplate.send(endpoint.getTopic(), createMessage(httpEntity.getBody(), endpoint));
+          rawKafkaTemplate.send(endpoint.getTopic(), createMessage(httpEntity.getBody(), endpoint));
 
       final DeferredResult<ResponseEntity<Map<String, Object>>> response = new DeferredResult<>();
 
@@ -83,7 +90,7 @@ public class RestIngestController {
 
             @Override
             public void onSuccess(SendResult<Object, Object> result) {
-              log.info(
+              log.debug(
                   "Message sent to topic = '{}' with offset = '{}' and partition = '{}'",
                   result.getRecordMetadata().topic(),
                   result.getRecordMetadata().offset(),

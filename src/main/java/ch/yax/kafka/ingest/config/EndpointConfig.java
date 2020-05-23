@@ -14,12 +14,12 @@ import org.springframework.context.annotation.Configuration;
 @ConfigurationProperties(prefix = "ingest")
 @ToString
 @Slf4j
-public class EndpointConfiguration {
+public class EndpointConfig {
   private final Map<String, Endpoint> endpoints = new HashMap<>();
 
   @PostConstruct
   public void init() {
-    log.info("init {}", endpoints);
+    log.info("endpoint config {}", endpoints);
     for (Endpoint endpoint : endpoints.values()) {
       if (endpoint.hasSchema()) {
         log.info("load avro schema for endpoint {}", endpoints);
