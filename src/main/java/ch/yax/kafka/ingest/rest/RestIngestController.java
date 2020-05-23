@@ -14,6 +14,8 @@ import java.util.Map;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.generic.GenericData;
+import org.apache.kafka.common.errors.SerializationException;
+import org.jetbrains.annotations.Nullable;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -81,7 +83,7 @@ public class RestIngestController {
       validate(httpEntity.getBody());
 
       ListenableFuture<SendResult<Object, Object>> future =
-          rawKafkaTemplate.send(endpoint.getTopic(), createMessage(httpEntity.getBody(), endpoint));
+          sendMessage(httpEntity.getBody(), endpoint);
 
       final DeferredResult<ResponseEntity<Map<String, Object>>> response = new DeferredResult<>();
 
@@ -118,7 +120,7 @@ public class RestIngestController {
 
       DeferredResult<ResponseEntity<Map<String, Object>>> errorResult = new DeferredResult<>();
       errorResult.setErrorResult(
-          createErrorResponse(eventId, HttpStatus.BAD_REQUEST, ex.getOriginalMessage()));
+          createErrorResponse(eventId, HttpStatus.BAD_REQUEST, getCauseAsString(ex)));
       return errorResult;
     } catch (AvroConversionException ex) {
       log.warn(
@@ -129,9 +131,30 @@ public class RestIngestController {
 
       DeferredResult<ResponseEntity<Map<String, Object>>> errorResult = new DeferredResult<>();
       errorResult.setErrorResult(
-          createErrorResponse(eventId, HttpStatus.BAD_REQUEST, ex.getMessage()));
+          createErrorResponse(eventId, HttpStatus.BAD_REQUEST, getCauseAsString(ex)));
+      return errorResult;
+    } catch (SerializationException ex) {
+      log.warn(
+          "Failed to serialize Avro for eventId = '{}' with payload = '{}'",
+          eventId,
+          httpEntity.getBody(),
+          ex.getCause());
+
+      DeferredResult<ResponseEntity<Map<String, Object>>> errorResult = new DeferredResult<>();
+
+      errorResult.setErrorResult(
+          createErrorResponse(eventId, HttpStatus.BAD_REQUEST, getCauseAsString(ex)));
       return errorResult;
     }
+  }
+
+  @Nullable
+  private String getCauseAsString(Exception ex) {
+    String message = ex.getMessage();
+    if (ex.getCause() != null && ex.getCause().getMessage() != null) {
+      message += ". " + ex.getCause().getMessage();
+    }
+    return message;
   }
 
   private void validate(final String payload) throws JsonProcessingException {
@@ -149,7 +172,7 @@ public class RestIngestController {
     body.put("eventId", eventId);
     body.put("timestamp", now());
     body.put("status", status.value());
-    body.put("message", status.getReasonPhrase());
+    body.put("error", status.getReasonPhrase());
     return body;
   }
 
@@ -158,19 +181,20 @@ public class RestIngestController {
   }
 
   private ResponseEntity<Map<String, Object>> createErrorResponse(
-      String eventId, HttpStatus status, String error) {
+      String eventId, HttpStatus status, String errorMessage) {
     Map<String, Object> body = createBody(eventId, status);
-    body.put("error", error);
+    body.put("message", errorMessage);
     return new ResponseEntity<>(body, status);
   }
 
-  private Object createMessage(String payload, Endpoint endpoint) {
+  private ListenableFuture<SendResult<Object, Object>> sendMessage(
+      String payload, Endpoint endpoint) {
     if (endpoint.hasSchema()) {
       GenericData.Record record =
           converter.convertToGenericDataRecord(payload.getBytes(), endpoint.getSchema().getAvro());
-      return record;
+      return avroKafkaTemplate.send(endpoint.getTopic(), record);
     } else {
-      return payload;
+      return rawKafkaTemplate.send(endpoint.getTopic(), payload);
     }
   }
 }

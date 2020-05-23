@@ -4,16 +4,17 @@ server:
 kafka:
   properties:
     bootstrap-servers: localhost:9092
-    schema.registry.url: localhost:8082
+    schema.registry.url: http://localhost:8081
+    auto.register.schemas: false
 
 ingest:
   endpoints:
     foo:
       topic: foo
     baz:
-      topic: baz
+      topic: avro-topic
       schema:
-        value: '{"namespace": "example.avro", "type": "record", "name": "User",  "fields": [ {"name": "name", "type": "string"}]}'
+        value: '{"type":"record","name":"schema1","namespace":"test","fields":[{"name":"name","type":"string"},{"name":"age","type":"int"}]}'
 
 #ingest:
 #  endpoints:

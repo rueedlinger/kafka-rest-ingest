@@ -22,7 +22,7 @@ public class EndpointConfig {
     log.info("endpoint config {}", endpoints);
     for (Endpoint endpoint : endpoints.values()) {
       if (endpoint.hasSchema()) {
-        log.info("load avro schema for endpoint {}", endpoints);
+        log.info("load avro schema for endpoint {}", endpoint);
         endpoint
             .getSchema()
             .setAvro(new org.apache.avro.Schema.Parser().parse(endpoint.getSchema().getValue()));

@@ -1,5 +1,6 @@
 package ch.yax.kafka.ingest.config;
 
+import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig;
 import io.confluent.kafka.serializers.KafkaAvroSerializer;
 import java.util.HashMap;
 import java.util.Map;
@@ -33,6 +34,9 @@ public class KafkaProducerConfig {
   @Value(value = "${kafka.producer.retries:10}")
   private int retries;
 
+  @Value(value = "${kafka.properties.auto.register.schemas:false}")
+  private boolean autoRegisterSchemas;
+
   // TODO: add other config options https://kafka.apache.org/documentation/#producerconfigs
 
   @PostConstruct
@@ -42,11 +46,7 @@ public class KafkaProducerConfig {
 
   @Bean(name = "rawProducerFactory")
   public ProducerFactory<Object, Object> rawProducerFactory() {
-    Map<String, Object> configProps = new HashMap<>();
-    configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapAddress);
-    configProps.put(ProducerConfig.ACKS_CONFIG, producerAcks);
-    configProps.put(ProducerConfig.RETRIES_CONFIG, retries);
-    configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+    Map<String, Object> configProps = createKafkaProducerDefaultConfig();
     configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
     return new DefaultKafkaProducerFactory<>(configProps);
   }
@@ -59,13 +59,10 @@ public class KafkaProducerConfig {
 
   @Bean(name = "avroProducerFactory")
   public ProducerFactory<Object, Object> avroProducerFactory() {
-    Map<String, Object> configProps = new HashMap<>();
-    configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapAddress);
-    configProps.put(ProducerConfig.ACKS_CONFIG, producerAcks);
-    configProps.put(ProducerConfig.RETRIES_CONFIG, retries);
-    configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+    Map<String, Object> configProps = createKafkaProducerDefaultConfig();
     configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, KafkaAvroSerializer.class);
-    configProps.put("schema.registry.url", schemaRegistryUrl);
+    configProps.put(AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, schemaRegistryUrl);
+    configProps.put(AbstractKafkaSchemaSerDeConfig.AUTO_REGISTER_SCHEMAS, autoRegisterSchemas);
     return new DefaultKafkaProducerFactory<>(configProps);
   }
 
@@ -73,5 +70,14 @@ public class KafkaProducerConfig {
   public KafkaTemplate<Object, Object> avroKafkaTemplate(
       @Qualifier("avroProducerFactory") ProducerFactory<Object, Object> avroProducerFactory) {
     return new KafkaTemplate<>(avroProducerFactory);
+  }
+
+  private Map<String, Object> createKafkaProducerDefaultConfig() {
+    Map<String, Object> configProps = new HashMap<>();
+    configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapAddress);
+    configProps.put(ProducerConfig.ACKS_CONFIG, producerAcks);
+    configProps.put(ProducerConfig.RETRIES_CONFIG, retries);
+    configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+    return configProps;
   }
 }

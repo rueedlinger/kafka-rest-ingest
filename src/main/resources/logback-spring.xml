@@ -27,4 +27,9 @@
     <appender-ref ref="Console"/>
   </logger>
 
+  <logger name="io.confluent.kafka.schemaregistry" level="debug" additivity="false">
+    <appender-ref ref="Console"/>
+  </logger>
+
+
 </configuration>
