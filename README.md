@@ -70,3 +70,10 @@ curl --header "Content-Type: application/json" \
   http://localhost:9000/publish/bar
 ```
 
+### TODO:
+- add more tests
+- add more config options (https://kafka.apache.org/documentation/#producerconfigs)
+- add support load Avro from file (volume)
+- add support for fire and forget (non-blocking). Instead result to client (HTTP 202).
+- add endpoint security (Basic Auth, etc.)
+- add other schema (JSON, Protobuf, etc.)
