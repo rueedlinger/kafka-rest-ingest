@@ -44,11 +44,17 @@ kafka-rest-ingest:
       # The AVRO schema which should for endpoint /publish/bar
       INGEST_ENDPOINTS_BAR_SCHEMA_VALUE: '{"type":"record","name":"schema1","namespace":"test","fields":[{"name":"name","type":"string"},{"name":"age","type":"int"}]}'
 
-      KAFKA_REST_BOOTSTRAP_SERVERS: localhost:909222
-      KAFKA_REST_SCHEMA_REGISTRY_URL: 'http://schema-registry:8081'
-      KAFKA_PRODUCER_AUTO_REGISTER_SCHEMA: true
+      KAFKA_BOOTSTRAP_SERVERS: 'broker:29092'
+      KAFKA_SCHEMA_REGISTRY_URL: 'http://schema-registry:8081'
+      KAFKA_PRODUCER_AUTO_REGISTER_SCHEMAS: "true"
       KAFKA_PRODUCER_RETRIES: 10
       KAFKA_PRODUCER_ACKS: 1
+
+    depends_on:
+      - zookeeper
+      - broker
+      - schema-registry
+
 ```
 
 ### Use
